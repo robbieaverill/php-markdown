@@ -95,6 +95,14 @@ class Markdown implements MarkdownInterface {
 	protected $escape_chars = '\`*_{}[]()>#+-.!';
 	protected $escape_chars_re;
 
+	/**
+	 * Container for markdown contents that can be disabled so that they will
+	 * not be rendered. Keys are used for the element type, with the value
+	 * being irrelevant if set.
+	 * @var array
+	 */
+	protected $disabled_elements = array();
+
 
 	public function __construct() {
 	#
@@ -184,7 +192,11 @@ class Markdown implements MarkdownInterface {
 
 		# Run document gamut methods.
 		foreach ($this->document_gamut as $method => $priority) {
-			$text = $this->$method($text);
+			# Strip off the "do" part if it's there
+			$methodType = (substr($method, 0, 2) === 'do') ? substr($method, 2) : $method;
+			if ($this->getElementEnabled($methodType)) {
+				$text = $this->$method($text);
+			}
 		}
 		
 		$this->teardown();
@@ -454,7 +466,11 @@ class Markdown implements MarkdownInterface {
 	# whole-document pass.
 	#
 		foreach ($this->block_gamut as $method => $priority) {
-			$text = $this->$method($text);
+			# Strip off the "do" part if it's there
+			$methodType = (substr($method, 0, 2) === 'do') ? substr($method, 2) : $method;
+			if ($this->getElementEnabled($methodType)) {
+				$text = $this->$method($text);
+			}
 		}
 		
 		# Finally form paragraph and restore hashed blocks.
@@ -511,7 +527,11 @@ class Markdown implements MarkdownInterface {
 	# Run span gamut tranformations.
 	#
 		foreach ($this->span_gamut as $method => $priority) {
-			$text = $this->$method($text);
+			# Strip off the "do" part if it's there
+			$methodType = (substr($method, 0, 2) === 'do') ? substr($method, 2) : $method;
+			if ($this->getElementEnabled($methodType)) {
+				$text = $this->$method($text);
+			}
 		}
 
 		return $text;
@@ -1611,6 +1631,36 @@ class Markdown implements MarkdownInterface {
 	}
 	protected function _unhash_callback($matches) {
 		return $this->html_hashes[$matches[0]];
+	}
+
+	/**
+	 * Return whether a certain markdown element is disabled. The $type is
+	 * one of the doSomething() method names without the "do".
+	 * @param  string $type Anchor, Images, etc
+	 * @return bool
+	 */
+	public function getElementEnabled($type) {
+		return (!isset($this->disabled_elements[$type]));
+	}
+
+	/**
+	 * Enable a markdown element
+	 * @param  string $type
+	 * @return self
+	 */
+	public function enableElement($type) {
+		unset($this->disabled_elements[$type]);
+		return $this;
+	}
+
+	/**
+	 * Disable a markdown element
+	 * @param  string $type
+	 * @return self
+	 */
+	public function disableElement($type) {
+		$this->disabled_elements[$type] = true;
+		return $this;
 	}
 
 }
